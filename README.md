@@ -26,6 +26,11 @@ manage user authentication and tokens.
 - Refreshing access tokens and storing them in local storage.
 - Working with client and server side rendering
 
+### Missing Features
+
+- Refetch access token periodically/automatically in the background
+- Some minor code refactoring/cleanup
+
 ## Installation
 
 To use **leptos_oidc** in your Leptos-based application, add it as a dependency in your `Cargo.toml` file:
