@@ -72,8 +72,8 @@ pub fn AppWithRouter() -> impl IntoView {
     // Specify OIDC authentication parameters here.
     // Note: This is an example for keycloak, please change it to your needs
     let auth_parameters = AuthParameters {
-        auth_endpoint: "https://ENDPOINT/auth/realms/REALM/protocol/openid-connect/logout".to_string(),
-        token_endpoint: "https://ENDPOINT/auth/realms/REALM/protocol/openid-connect/logout".to_string(),
+        auth_endpoint: "https://ENDPOINT/auth/realms/REALM/protocol/openid-connect/auth".to_string(),
+        token_endpoint: "https://ENDPOINT/auth/realms/REALM/protocol/openid-connect/token".to_string(),
         logout_endpoint: "https://ENDPOINT/auth/realms/REALM/protocol/openid-connect/logout".to_string(),
         client_id: "CLIENT_ID".to_string(),
         redirect_uri: "http://localhost:3000/profile".to_string(),
