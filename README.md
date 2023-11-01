@@ -178,6 +178,7 @@ application. These URLs are used to redirect users to the OIDC provider for
 authentication and logout.
 
 ```rust
+use leptos::*;
 use leptos_oidc::Auth;
 
 #[component]
@@ -199,6 +200,7 @@ based on the authentication state. These components simplify the user interface
 when dealing with authenticated and unauthenticated users.
 
 ```rust
+use leptos::*;
 use leptos_oidc::Auth;
 
 #[component]
@@ -235,6 +237,7 @@ is essential for ensuring that authenticated users maintain their access rights.
 Refreshed tokens are stored in local storage.
 
 ```rust
+use leptos::*;
 use leptos_oidc::Auth;
 
 #[component]
