@@ -37,7 +37,7 @@ pub enum CallbackResponse {
 /// A structure representing a successful login callback response.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct SuccessCallbackResponse {
-    pub session_state: String,
+    pub session_state: Option<String>,
     pub code: String,
 }
 
@@ -61,14 +61,14 @@ pub enum TokenResponse {
 pub struct SuccessTokenResponse {
     pub access_token: String,
     pub expires_in: i64,
-    pub refresh_expires_in: i64,
+    pub refresh_expires_in: Option<i64>,
     pub refresh_token: String,
-    pub token_type: String,
+    pub token_type: Option<String>,
     pub id_token: String,
     #[serde(rename = "not-before-policy")]
-    pub not_before_policy: i64,
-    pub session_state: String,
-    pub scope: String,
+    pub not_before_policy: Option<i64>,
+    pub session_state: Option<String>,
+    pub scope: Option<String>,
 }
 
 /// A structure representing an error response during the authentication
@@ -83,14 +83,14 @@ pub struct ErrorResponse {
 /// `SuccessCallbackResponse`.
 impl Params for SuccessCallbackResponse {
     fn from_map(map: &ParamsMap) -> Result<Self, ParamsError> {
-        if let (Some(session_state), Some(code)) = (map.get("session_state"), map.get("code")) {
+        if let (session_state, Some(code)) = (map.get("session_state"), map.get("code")) {
             return Ok(SuccessCallbackResponse {
-                session_state: session_state.clone(),
+                session_state: session_state.cloned(),
                 code: code.clone(),
             });
         }
         Err(ParamsError::MissingParam(
-            "Missing parameter 'session_state' and 'code'".to_string(),
+            "Missing parameter 'code'".to_string(),
         ))
     }
 }

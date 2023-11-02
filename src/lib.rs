@@ -107,7 +107,7 @@ impl Auth {
                                         auth.resource.set(Err(error));
                                     }
                                     Ok(Some(state)) => {
-                                        if state.refresh_expires_in < Utc::now().naive_utc() {
+                                        if state.refresh_expires_in < Some(Utc::now().naive_utc()) {
                                             remove_token_storage().ok();
                                             auth.resource.set(Ok(None));
                                         } else {
@@ -251,17 +251,18 @@ async fn fetch_token(
     parameters: &AuthParameters,
     auth_response: SuccessCallbackResponse,
 ) -> Result<TokenStorage, AuthError> {
+    let mut body = "&grant_type=authorization_code"
+        .to_string()
+        .push_param_body("client_id", &parameters.client_id)
+        .push_param_body("redirect_uri", &parameters.redirect_uri)
+        .push_param_body("code", &auth_response.code);
+    if let Some(state) = &auth_response.session_state {
+        body = body.push_param_body("state", state);
+    }
     let response = reqwest::Client::new()
         .post(parameters.token_endpoint.clone())
         .header("Content-Type", "application/x-www-form-urlencoded")
-        .body(
-            "&grant_type=authorization_code"
-                .to_string()
-                .push_param_body("client_id", &parameters.client_id)
-                .push_param_body("redirect_uri", &parameters.redirect_uri)
-                .push_param_body("code", &auth_response.code)
-                .push_param_body("state", &auth_response.session_state),
-        )
+        .body(body)
         .send()
         .await
         .map_err(Arc::new)?

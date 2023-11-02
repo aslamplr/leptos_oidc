@@ -41,7 +41,7 @@ pub struct TokenStorage {
     pub access_token: String,
     pub expires_in: NaiveDateTime,
     pub refresh_token: String,
-    pub refresh_expires_in: NaiveDateTime,
+    pub refresh_expires_in: Option<NaiveDateTime>,
 }
 
 /// Converts a `SuccessTokenResponse` into a `TokenStorage` structure.
@@ -52,8 +52,9 @@ impl From<SuccessTokenResponse> for TokenStorage {
             access_token: value.access_token,
             expires_in: Utc::now().naive_utc() + Duration::seconds(value.expires_in),
             refresh_token: value.refresh_token,
-            refresh_expires_in: Utc::now().naive_utc()
-                + Duration::seconds(value.refresh_expires_in),
+            refresh_expires_in: value.refresh_expires_in.map(|refresh_expires_in| {
+                Utc::now().naive_utc() + Duration::seconds(refresh_expires_in)
+            }),
         }
     }
 }
