@@ -55,7 +55,7 @@ in your `Cargo.toml` file:
 
 ```toml
 [dependencies]
-leptos_oidc = "0.1"
+leptos_oidc = "0.2"
 ```
 
 Note: This needs at least `leptos v0.5`.
