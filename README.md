@@ -70,7 +70,7 @@ to specify the OIDC endpoints, client ID, redirect URIs, and other relevant
 information.
 
 ```rust
-use leptos::*;ested-backend-with-example
+use leptos::*;
 use leptos_oidc::{Auth, AuthParameters};
 
 #[component]
