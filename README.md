@@ -8,7 +8,8 @@ manage user authentication and tokens.
 ## Table of Contents
 
 - [Features](#features)
-- [Installation](#installation)
+- [Missing Features](#missing-features)
+- [Tested Backends with Example](#tested-backends-with-example)
 - [Usage](#usage)
   - [Initialization](#initialization)
   - [Generating Login and Logout URLs](#generating-login-and-logout-urls)
@@ -31,9 +32,26 @@ manage user authentication and tokens.
 - Refetch access token periodically/automatically in the background
 - Some minor code refactoring/cleanup
 
+### Tested Backends with Example
+
+**leptos_oidc** was tested with various backends. This doesn't mean that other
+backends are not supported. Every backend which is support `oidc` should work.
+But feel free to ask for advice or give feedback!
+
+Tested backends:
+- [KeyCloak](https://github.com/keycloak/keycloak)
+- [rauthy](https://github.com/sebadob/rauthy/)
+
+You can find a setup guide for the backends under [docs/backends](docs/backends/README.md).
+
+#### Keycloak
+
+#### Rauthy
+
 ## Installation
 
-To use **leptos_oidc** in your Leptos-based application, add it as a dependency in your `Cargo.toml` file:
+To use **leptos_oidc** in your Leptos-based application, add it as a dependency
+in your `Cargo.toml` file:
 
 ```toml
 [dependencies]
@@ -46,10 +64,13 @@ Note: This needs at least `leptos v0.5`.
 
 ### Initialization and Example
 
-To get started with OIDC authentication, initialize the library with the required authentication parameters. You can use the `AuthParameters` struct to specify the OIDC endpoints, client ID, redirect URIs, and other relevant information.
+To get started with OIDC authentication, initialize the library with the
+required authentication parameters. You can use the `AuthParameters` struct
+to specify the OIDC endpoints, client ID, redirect URIs, and other relevant
+information.
 
 ```rust
-use leptos::*;
+use leptos::*;ested-backend-with-example
 use leptos_oidc::{Auth, AuthParameters};
 
 #[component]
