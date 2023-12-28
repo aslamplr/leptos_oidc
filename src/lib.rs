@@ -107,7 +107,10 @@ impl Auth {
                                         auth.resource.set(Err(error));
                                     }
                                     Ok(Some(state)) => {
-                                        if state.refresh_expires_in < Some(Utc::now().naive_utc()) {
+                                        if state.refresh_expires_in.is_some()
+                                            && state.refresh_expires_in
+                                                < Some(Utc::now().naive_utc())
+                                        {
                                             remove_token_storage().ok();
                                             auth.resource.set(Ok(None));
                                         } else {
