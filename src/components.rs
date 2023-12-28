@@ -32,6 +32,7 @@ use crate::Auth;
 /// A transparent component representing authenticated user status.
 /// It provides a way to conditionally render its children based on the user's authentication status.
 /// If the user is authenticated, it renders the children; otherwise, it falls back to the provided loading or unauthenticated view.
+#[must_use]
 #[component(transparent)]
 pub fn Authenticated(
     children: ChildrenFn,
@@ -55,6 +56,7 @@ pub fn Authenticated(
 
 /// A transparent component representing the loading state of authentication.
 /// It allows rendering its children when the authentication process is loading, with an optional fallback view.
+#[must_use]
 #[component(transparent)]
 pub fn AuthLoading(
     children: ChildrenFn,
@@ -72,6 +74,7 @@ pub fn AuthLoading(
 
 /// A transparent component representing the loaded state of authentication.
 /// It allows rendering its children when the authentication process has completed, with an optional fallback view.
+#[must_use]
 #[component(transparent)]
 pub fn AuthLoaded(children: ChildrenFn, #[prop(optional, into)] fallback: ViewFn) -> impl IntoView {
     let auth = expect_context::<Auth>();
@@ -86,6 +89,7 @@ pub fn AuthLoaded(children: ChildrenFn, #[prop(optional, into)] fallback: ViewFn
 
 /// A transparent component representing a login link.
 /// It generates a login URL and renders a link with the provided children and optional CSS class.
+#[must_use]
 #[component(transparent)]
 pub fn LoginLink(
     children: Children,
@@ -103,6 +107,7 @@ pub fn LoginLink(
 
 /// A transparent component representing a logout link.
 /// It generates a logout URL and renders a link with the provided children and optional CSS class.
+#[must_use]
 #[component(transparent)]
 pub fn LogoutLink(
     children: Children,
