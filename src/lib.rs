@@ -33,7 +33,7 @@ use leptos::{
 };
 use leptos_router::use_query;
 use response::{CallbackResponse, SuccessCallbackResponse, TokenResponse};
-use serde::Deserialize;
+use serde::{de::DeserializeOwned, Deserialize};
 use storage::{read_token_storage, remove_token_storage, write_to_token_storage, TokenStorage};
 use utils::ParamBuilder;
 
@@ -209,6 +209,18 @@ impl Auth {
             .and_then(Result::ok)
             .flatten()
             .map(|response| response.access_token)
+    }
+
+    /// Returns the decoded access token, if available, from the authentication response.
+    #[must_use]
+    pub fn decoded_access_token<T: DeserializeOwned>(
+        &self,
+    ) -> Option<Result<T, serde_json::Error>> {
+        self.resource
+            .get()
+            .and_then(Result::ok)
+            .flatten()
+            .map(|response| serde_json::from_str(&response.access_token))
     }
 
     /// Returns the authentication state, which may contain token storage information.
