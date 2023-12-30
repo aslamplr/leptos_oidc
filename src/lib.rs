@@ -27,6 +27,7 @@
 use std::sync::Arc;
 
 use chrono::Utc;
+use jsonwebtoken::decode;
 use leptos::{
     create_effect, create_local_resource, expect_context, provide_context, spawn_local, Resource,
     SignalGet, SignalGetUntracked, SignalSet,
@@ -45,6 +46,11 @@ pub mod utils;
 
 pub use components::*;
 pub use error::AuthError;
+
+pub type Algorithm = jsonwebtoken::Algorithm;
+pub type DecodingKey = jsonwebtoken::DecodingKey;
+pub type TokenData<T> = jsonwebtoken::TokenData<T>;
+pub type Validation = jsonwebtoken::Validation;
 
 /// Represents authentication parameters required for initializing the `Auth`
 /// structure. These parameters include authentication and token endpoints,
@@ -215,12 +221,31 @@ impl Auth {
     #[must_use]
     pub fn decoded_access_token<T: DeserializeOwned>(
         &self,
-    ) -> Option<Result<T, serde_json::Error>> {
+        decoding_key: &DecodingKey,
+        validation: &Validation,
+    ) -> Option<Result<TokenData<T>, jsonwebtoken::errors::Error>> {
         self.resource
             .get()
             .and_then(Result::ok)
             .flatten()
-            .map(|response| serde_json::from_str(&response.access_token))
+            .map(|response| decode::<T>(&response.access_token, decoding_key, validation))
+    }
+
+    /// Returns the decoded access token, if available, from the authentication response, this is not validating the access token.
+    #[must_use]
+    pub fn decoded_access_token_unverified<T: DeserializeOwned>(
+        &self,
+        algorithm: Algorithm,
+    ) -> Option<Result<TokenData<T>, jsonwebtoken::errors::Error>> {
+        let key = DecodingKey::from_secret(&[]);
+        let mut validation = Validation::new(algorithm);
+        validation.insecure_disable_signature_validation();
+
+        self.resource
+            .get()
+            .and_then(Result::ok)
+            .flatten()
+            .map(|response| decode::<T>(&response.access_token, &key, &validation))
     }
 
     /// Returns the authentication state, which may contain token storage information.
