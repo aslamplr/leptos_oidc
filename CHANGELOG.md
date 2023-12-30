@@ -3,6 +3,10 @@
 This is containing every changes, there are and there will be some bugs. But
 tackling them down and documenting them will hopefully help you out. :)
 
+## v0.3.1
+
+- Fix decode_access_token, which was not decoding the `access_token`
+
 ## v0.3.0
 
 - Add capability to decode the access token inside this crate 
