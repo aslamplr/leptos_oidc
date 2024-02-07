@@ -23,8 +23,8 @@
 */
 
 use leptos::{
-    component, expect_context, view, AttributeValue, Children, ChildrenFn, IntoAttribute, IntoView,
-    Show, Transition, ViewFn,
+    component, expect_context, view, AttributeValue, Children, ChildrenFn, IntoView, Show,
+    Transition, ViewFn,
 };
 
 use crate::Auth;
