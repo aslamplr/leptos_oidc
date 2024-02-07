@@ -111,8 +111,6 @@ pub fn AppWithRouter() -> impl IntoView {
     };
     let auth = Auth::init(auth_parameters);
 
-    provide_context(NavbarSignal::new());
-
     view! {
         // This is an example for a navbar where you have a login and logout
         // button, based on the state.
