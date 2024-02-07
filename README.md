@@ -7,6 +7,7 @@ manage user authentication and tokens.
 
 ## Table of Contents
 
+- [Leptos compatibility](leptos-compatibility)
 - [Features](#features)
 - [Missing Features](#missing-features)
 - [Tested Backends with Example](#tested-backends-with-example)
@@ -16,6 +17,13 @@ manage user authentication and tokens.
   - [Conditional Rendering Components](#conditional-rendering-components)
   - [Refreshing Access Tokens](#refreshing-access-tokens)
 - [License](#license)
+
+## Leptos compatibility
+
+| Crate version | Compatible Leptos version |
+|---------------|---------------------------|
+| <= 0.3        | 0.5                       |
+| 0.4           | 0.6                       |
 
 ## Features
 

@@ -3,6 +3,11 @@
 This is containing every changes, there are and there will be some bugs. But
 tackling them down and documenting them will hopefully help you out. :)
 
+## v0.4.0
+
+- Bump version for leptos 0.6
+- Update README.md to show compatible leptos versions
+
 ## v0.3.1
 
 - Fix decode_access_token, which was not decoding the `access_token`
