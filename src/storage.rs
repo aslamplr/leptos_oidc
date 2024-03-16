@@ -24,7 +24,7 @@
 
 use std::sync::Arc;
 
-use chrono::{Duration, NaiveDateTime, Utc};
+use chrono::{NaiveDateTime, TimeDelta, Utc};
 use leptos::window;
 use serde::{Deserialize, Serialize};
 use web_sys::Storage;
@@ -50,10 +50,12 @@ impl From<SuccessTokenResponse> for TokenStorage {
         Self {
             id_token: value.id_token,
             access_token: value.access_token,
-            expires_in: Utc::now().naive_utc() + Duration::seconds(value.expires_in),
+            expires_in: Utc::now().naive_utc()
+                + TimeDelta::try_seconds(value.expires_in).unwrap_or_default(),
             refresh_token: value.refresh_token,
             refresh_expires_in: value.refresh_expires_in.map(|refresh_expires_in| {
-                Utc::now().naive_utc() + Duration::seconds(refresh_expires_in)
+                Utc::now().naive_utc()
+                    + TimeDelta::try_seconds(refresh_expires_in).unwrap_or_default()
             }),
         }
     }

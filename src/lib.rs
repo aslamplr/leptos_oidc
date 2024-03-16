@@ -236,10 +236,12 @@ impl Auth {
     pub fn decoded_access_token_unverified<T: DeserializeOwned>(
         &self,
         algorithm: Algorithm,
+        audience: &[&str],
     ) -> Option<Result<TokenData<T>, jsonwebtoken::errors::Error>> {
         let key = DecodingKey::from_secret(&[]);
         let mut validation = Validation::new(algorithm);
         validation.insecure_disable_signature_validation();
+        validation.set_audience(audience);
 
         self.resource
             .get()

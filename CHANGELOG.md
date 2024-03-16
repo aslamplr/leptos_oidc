@@ -3,6 +3,11 @@
 This is containing every changes, there are and there will be some bugs. But
 tackling them down and documenting them will hopefully help you out. :)
 
+## v0.4.1
+
+- Fix: Use TimeDelta::try_seconds instead of Duratoin::seconds
+- Fix: Add missing `audience` parameter for `decoded_access_token_unverified`
+
 ## v0.4.0
 
 - Bump version for leptos 0.6
