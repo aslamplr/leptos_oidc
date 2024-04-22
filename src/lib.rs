@@ -64,6 +64,7 @@ pub struct AuthParameters {
     pub redirect_uri: String,
     pub post_logout_redirect_uri: String,
     pub scope: Option<String>,
+    pub audience: Option<String>,
 }
 
 /// Authentication handler responsible for handling user authentication and
@@ -151,7 +152,8 @@ impl Auth {
     /// login page.
     #[must_use]
     pub fn login_url(&self) -> String {
-        self.parameters
+        let mut params = self
+            .parameters
             .auth_endpoint
             .clone()
             .push_param_query("response_type", "code")
@@ -163,7 +165,13 @@ impl Auth {
                     .scope
                     .clone()
                     .unwrap_or("openid".to_string()),
-            )
+            );
+
+        if let Some(audience) = &self.parameters.audience {
+            params = params.push_param_query("audience", audience);
+        }
+
+        params
     }
 
     /// Generates and returns the URL for initiating the logout process. This

@@ -108,6 +108,7 @@ pub fn AppWithRouter() -> impl IntoView {
         redirect_uri: "http://localhost:3000/profile".to_string(),
         post_logout_redirect_uri: "http://localhost:3000/bye".to_string(),
         scope: Some("openid"),
+        audience: None,
     };
     let auth = Auth::init(auth_parameters);
 
