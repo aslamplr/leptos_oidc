@@ -31,7 +31,7 @@ use crate::response::SuccessTokenResponse;
 pub(crate) const LOCAL_STORAGE_KEY: &str = "auth";
 
 /// A structure representing the storage of authentication tokens.
-#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct TokenStorage {
     pub id_token: String,
     pub access_token: String,

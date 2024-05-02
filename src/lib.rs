@@ -37,7 +37,7 @@ use leptos_use::{
     storage::use_local_storage, use_timeout_fn, utils::JsonCodec, UseTimeoutFnReturn,
 };
 use response::{CallbackResponse, SuccessCallbackResponse, TokenResponse};
-use serde::{de::DeserializeOwned, Deserialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use storage::{TokenStorage, LOCAL_STORAGE_KEY};
 use utils::ParamBuilder;
 
@@ -64,7 +64,7 @@ const REFRESH_TOKEN_SECONDS_BEFORE: usize = 30;
 /// Represents authentication parameters required for initializing the `Auth`
 /// structure. These parameters include authentication and token endpoints,
 /// client ID, and other related data.
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct AuthParameters {
     pub issuer: String,
     pub client_id: String,
@@ -74,7 +74,7 @@ pub struct AuthParameters {
     pub audience: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct Configuration {
     pub issuer: String,
     pub authorization_endpoint: String,
@@ -83,7 +83,7 @@ pub struct Configuration {
     pub jwks_uri: String,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct Keys {
     keys: Vec<Jwk>,
 }
@@ -96,6 +96,16 @@ pub struct Auth {
     issuer: IssuerResource,
     resource: AuthResource,
 }
+
+impl PartialEq for Auth {
+    fn eq(&self, other: &Self) -> bool {
+        self.parameters == other.parameters
+            && self.issuer.get() == other.issuer.get()
+            && self.resource.get().and_then(Result::ok) == other.resource.get().and_then(Result::ok)
+    }
+}
+
+impl Eq for Auth {}
 
 impl Auth {
     /// Initializes a new `Auth` instance with the provided authentication
