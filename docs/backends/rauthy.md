@@ -65,13 +65,12 @@ pub fn AppWithRouter() -> impl IntoView {
     // Specify OIDC authentication parameters here.
     // Note: This is an example for rauthy, please change it to your needs
     let auth_parameters = AuthParameters {
-        auth_endpoint: "http://localhost:8080/auth/v1/oidc/authorize".to_string(),
-        token_endpoint: "http://localhost:8080/auth/v1/oidc/token".to_string(),
-        logout_endpoint: "http://localhost:8080/auth/v1/oidc/logout".to_string(),
+        issuer: "http://localhost:8080/auth/v1".to_string(),
         client_id: "localdev".to_string(),
         redirect_uri: "http://localhost:3000".to_string(),
         post_logout_redirect_uri: "http://localhost:3000".to_string(),
         scope: None,
+        audience: None,
     };
     let auth = Auth::init(auth_parameters);
 

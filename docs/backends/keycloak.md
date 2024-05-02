@@ -53,19 +53,12 @@ pub fn AppWithRouter() -> impl IntoView {
     // Specify OIDC authentication parameters here.
     // Note: This is an example for keycloak, please change it to your needs
     let auth_parameters = AuthParameters {
-        auth_endpoint:
-            "http://localhost:8080/auth/realms/myrealm/protocol/openid-connect/auth"
-                .to_string(),
-        token_endpoint:
-            "http://localhost:8080/auth/realms/myrealm/protocol/openid-connect/token"
-                .to_string(),
-        logout_endpoint:
-            "http://localhost:8080/auth/realms/myrealm/protocol/openid-connect/logout"
-                .to_string(),
+        issuer: "http://localhost:8080/auth/realms/myrealm".to_string(),
         client_id: "localdev".to_string(),
         redirect_uri: "http://localhost:3000".to_string(),
         post_logout_redirect_uri: "http://localhost:3000".to_string(),
         scope: None,
+        audience: None,
     };
     let auth = Auth::init(auth_parameters);
 
