@@ -23,7 +23,7 @@ manage user authentication and tokens.
 | Crate version | Compatible Leptos version |
 |---------------|---------------------------|
 | <= 0.3        | 0.5                       |
-| 0.4           | 0.6                       |
+| 0.4-0.6       | 0.6                       |
 
 ## Features
 
@@ -34,10 +34,11 @@ manage user authentication and tokens.
 - Conditional rendering of components based on the authentication state.
 - Refreshing access tokens and storing them in local storage.
 - Working with client and server side rendering
+- Automatically refresh the access token in the background.
 
 ### Missing Features
 
-- Refetch access token periodically/automatically in the background
+- PKCE challenge
 - Some minor code refactoring/cleanup
 
 ### Tested Backends with Example
@@ -63,10 +64,10 @@ in your `Cargo.toml` file:
 
 ```toml
 [dependencies]
-leptos_oidc = "0.2"
+leptos_oidc = "0.6"
 ```
 
-Note: This needs at least `leptos v0.5`.
+Note: This needs at least `leptos v0.6`.
 
 ## Usage
 
@@ -76,6 +77,8 @@ To get started with OIDC authentication, initialize the library with the
 required authentication parameters. You can use the `AuthParameters` struct
 to specify the OIDC endpoints, client ID, redirect URIs, and other relevant
 information.
+
+Please keep in mind that the `issuer` url needs to be the base url without the `/.well-known/openid-configuration`.
 
 ```rust
 use leptos::*;
@@ -101,13 +104,11 @@ pub fn AppWithRouter() -> impl IntoView {
     // Specify OIDC authentication parameters here.
     // Note: This is an example for keycloak, please change it to your needs
     let auth_parameters = AuthParameters {
-        auth_endpoint: "https://ENDPOINT/auth/realms/REALM/protocol/openid-connect/auth".to_string(),
-        token_endpoint: "https://ENDPOINT/auth/realms/REALM/protocol/openid-connect/token".to_string(),
-        logout_endpoint: "https://ENDPOINT/auth/realms/REALM/protocol/openid-connect/logout".to_string(),
+        issuer: "https://ENDPOINT/auth/v1".to_string(),
         client_id: "CLIENT_ID".to_string(),
         redirect_uri: "http://localhost:3000/profile".to_string(),
         post_logout_redirect_uri: "http://localhost:3000/bye".to_string(),
-        scope: Some("openid"),
+        scope: Some("openid%20profile%20email"),
         audience: None,
     };
     let auth = Auth::init(auth_parameters);
@@ -260,26 +261,7 @@ fn MyComponent() {
 
 ### Refreshing Access Tokens
 
-**leptos_oidc** offers the ability to refresh access tokens. This functionality
-is essential for ensuring that authenticated users maintain their access rights.
-Refreshed tokens are stored in local storage.
-
-```rust
-use leptos::*;
-use leptos_oidc::Auth;
-
-#[component]
-fn main() {
-    let auth = expect_context::<Auth>();
-
-    view! {
-        // Refresh the access token and get the new token.
-        <button on:click=move |_| auth.refresh_token() class="text-black dark:text-white">
-            Refresh Token
-        </button>
-    }
-}
-```
+This library is now capable of refreshing the `access_token` in the background. :)
 
 ## License
 

@@ -26,16 +26,19 @@
 
 use std::sync::Arc;
 
-use chrono::Utc;
-use jsonwebtoken::decode;
+use chrono::Local;
+use jsonwebtoken::{decode, jwk::Jwk, DecodingKey};
 use leptos::{
     create_effect, create_local_resource, expect_context, provide_context, spawn_local, Resource,
-    SignalGet, SignalGetUntracked, SignalSet,
+    SignalGet, SignalGetUntracked, SignalUpdate,
 };
-use leptos_router::use_query;
+use leptos_router::{use_navigate, use_query, NavigateOptions};
+use leptos_use::{
+    storage::use_local_storage, use_timeout_fn, utils::JsonCodec, UseTimeoutFnReturn,
+};
 use response::{CallbackResponse, SuccessCallbackResponse, TokenResponse};
 use serde::{de::DeserializeOwned, Deserialize};
-use storage::{read_token_storage, remove_token_storage, write_to_token_storage, TokenStorage};
+use storage::{TokenStorage, LOCAL_STORAGE_KEY};
 use utils::ParamBuilder;
 
 pub mod components;
@@ -48,18 +51,22 @@ pub use components::*;
 pub use error::AuthError;
 
 pub type Algorithm = jsonwebtoken::Algorithm;
-pub type DecodingKey = jsonwebtoken::DecodingKey;
 pub type TokenData<T> = jsonwebtoken::TokenData<T>;
 pub type Validation = jsonwebtoken::Validation;
+pub type IssuerResource = Resource<AuthParameters, (Configuration, Keys)>;
+pub type AuthResource = Resource<
+    (Option<(Configuration, Keys)>, Option<TokenStorage>),
+    Result<Option<TokenStorage>, AuthError>,
+>;
+
+const REFRESH_TOKEN_SECONDS_BEFORE: usize = 30;
 
 /// Represents authentication parameters required for initializing the `Auth`
 /// structure. These parameters include authentication and token endpoints,
 /// client ID, and other related data.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 pub struct AuthParameters {
-    pub auth_endpoint: String,
-    pub token_endpoint: String,
-    pub logout_endpoint: String,
+    pub issuer: String,
     pub client_id: String,
     pub redirect_uri: String,
     pub post_logout_redirect_uri: String,
@@ -67,12 +74,27 @@ pub struct AuthParameters {
     pub audience: Option<String>,
 }
 
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+pub struct Configuration {
+    pub issuer: String,
+    pub authorization_endpoint: String,
+    pub token_endpoint: String,
+    pub end_session_endpoint: String,
+    pub jwks_uri: String,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+pub struct Keys {
+    keys: Vec<Jwk>,
+}
+
 /// Authentication handler responsible for handling user authentication and
 /// token management.
 #[derive(Debug, Clone)]
 pub struct Auth {
     parameters: AuthParameters,
-    resource: Resource<(), Result<Option<TokenStorage>, AuthError>>,
+    issuer: IssuerResource,
+    resource: AuthResource,
 }
 
 impl Auth {
@@ -81,64 +103,14 @@ impl Auth {
     /// configured for authentication.
     #[allow(clippy::must_use_candidate)]
     pub fn init(parameters: AuthParameters) -> Self {
-        let resource = create_local_resource(move || (), {
-            let parameters = parameters.clone();
-            move |()| {
-                let parameters = parameters.clone();
-                async move {
-                    let auth_response = use_query::<CallbackResponse>();
-                    match auth_response.get_untracked() {
-                        Ok(CallbackResponse::SuccessLogin(response)) => {
-                            fetch_token(&parameters, response).await.map(Option::Some)
-                        }
-                        Ok(CallbackResponse::SuccessLogout(response)) => {
-                            if response.destroy_session {
-                                create_effect(move |_| {
-                                    if let Err(error) = remove_token_storage() {
-                                        leptos::logging::error!(
-                                            "Unable to delete token: {error:#?}"
-                                        );
-                                    }
-                                });
-                            }
+        let issuer = init_issuer_resource(parameters.clone());
+        let resource = init_auth_resource(parameters.clone(), issuer);
 
-                            Ok(None)
-                        }
-                        Ok(CallbackResponse::Error(error)) => Err(AuthError::Provider(error)),
-                        Err(_) => {
-                            create_effect(move |_| {
-                                let auth = expect_context::<Auth>();
-                                match read_token_storage() {
-                                    Err(error) => {
-                                        remove_token_storage().ok();
-                                        auth.resource.set(Err(error));
-                                    }
-                                    Ok(Some(state)) => {
-                                        if state.refresh_expires_in.is_some()
-                                            && state.refresh_expires_in
-                                                < Some(Utc::now().naive_utc())
-                                        {
-                                            remove_token_storage().ok();
-                                            auth.resource.set(Ok(None));
-                                        } else {
-                                            auth.resource.set(Ok(Some(state)));
-                                        }
-                                    }
-                                    Ok(None) => {
-                                        auth.resource.set(Ok(None));
-                                    }
-                                }
-                            });
-
-                            Ok(None)
-                        }
-                    }
-                }
-            }
-        });
+        create_handle_refresh_effect(parameters.clone(), issuer, resource);
 
         let auth = Self {
             parameters,
+            issuer,
             resource,
         };
 
@@ -151,10 +123,12 @@ impl Auth {
     /// This URL is used to redirect the user to the authentication provider's
     /// login page.
     #[must_use]
-    pub fn login_url(&self) -> String {
-        let mut params = self
-            .parameters
-            .auth_endpoint
+    pub fn login_url(&self) -> Option<String> {
+        let issuer = self.issuer.get()?;
+
+        let mut params = issuer
+            .0
+            .authorization_endpoint
             .clone()
             .push_param_query("response_type", "code")
             .push_param_query("client_id", &self.parameters.client_id)
@@ -171,26 +145,29 @@ impl Auth {
             params = params.push_param_query("audience", audience);
         }
 
-        params
+        Some(params)
     }
 
     /// Generates and returns the URL for initiating the logout process. This
     /// URL is used to redirect the user to the authentication provider's logout
     /// page.
     #[must_use]
-    pub fn logout_url(&self) -> String {
-        let url = self.parameters.logout_endpoint.clone().push_param_query(
+    pub fn logout_url(&self) -> Option<String> {
+        let issuer = self.issuer.get()?;
+
+        let url = issuer.0.end_session_endpoint.clone().push_param_query(
             "post_logout_redirect_uri",
             self.parameters
                 .post_logout_redirect_uri
                 .clone()
                 .push_param_query("destroy_session", "true"),
         );
+
         if let Some(token) = self.resource.get().and_then(Result::ok).flatten() {
-            return url.push_param_query("id_token_hint", token.id_token);
+            return Some(url.push_param_query("id_token_hint", token.id_token));
         }
 
-        url
+        Some(url)
     }
 
     /// Checks if the authentication process is currently loading.
@@ -215,6 +192,38 @@ impl Auth {
             .map(|response| response.id_token)
     }
 
+    /// Returns the decoded access token, if available, from the authentication response.
+    #[must_use]
+    pub fn decoded_id_token<T: DeserializeOwned>(
+        &self,
+        algorithm: Algorithm,
+        audience: &[&str],
+    ) -> Option<Option<TokenData<T>>> {
+        let issuer = self.issuer.get()?;
+
+        let mut validation = Validation::new(algorithm);
+        validation.set_audience(audience);
+
+        self.resource
+            .get()
+            .and_then(Result::ok)
+            .flatten()
+            .map(|response| {
+                for key in issuer.1.keys {
+                    let Ok(decoding_key) = DecodingKey::from_jwk(&key) else {
+                        continue;
+                    };
+
+                    match decode::<T>(&response.id_token, &decoding_key, &validation) {
+                        Ok(data) => return Some(data),
+                        Err(_) => continue,
+                    }
+                }
+
+                None
+            })
+    }
+
     /// Returns the access token, if available, from the authentication response.
     #[must_use]
     pub fn access_token(&self) -> Option<String> {
@@ -229,33 +238,32 @@ impl Auth {
     #[must_use]
     pub fn decoded_access_token<T: DeserializeOwned>(
         &self,
-        decoding_key: &DecodingKey,
-        validation: &Validation,
-    ) -> Option<Result<TokenData<T>, jsonwebtoken::errors::Error>> {
-        self.resource
-            .get()
-            .and_then(Result::ok)
-            .flatten()
-            .map(|response| decode::<T>(&response.access_token, decoding_key, validation))
-    }
-
-    /// Returns the decoded access token, if available, from the authentication response, this is not validating the access token.
-    #[must_use]
-    pub fn decoded_access_token_unverified<T: DeserializeOwned>(
-        &self,
         algorithm: Algorithm,
         audience: &[&str],
-    ) -> Option<Result<TokenData<T>, jsonwebtoken::errors::Error>> {
-        let key = DecodingKey::from_secret(&[]);
+    ) -> Option<Option<TokenData<T>>> {
+        let issuer = self.issuer.get()?;
+
         let mut validation = Validation::new(algorithm);
-        validation.insecure_disable_signature_validation();
         validation.set_audience(audience);
 
         self.resource
             .get()
             .and_then(Result::ok)
             .flatten()
-            .map(|response| decode::<T>(&response.access_token, &key, &validation))
+            .map(|response| {
+                for key in issuer.1.keys {
+                    let Ok(decoding_key) = DecodingKey::from_jwk(&key) else {
+                        continue;
+                    };
+
+                    match decode::<T>(&response.id_token, &decoding_key, &validation) {
+                        Ok(data) => return Some(data),
+                        Err(_) => continue,
+                    }
+                }
+
+                None
+            })
     }
 
     /// Returns the authentication state, which may contain token storage information.
@@ -273,32 +281,185 @@ impl Auth {
     pub fn set_redirect_uri(&mut self, uri: String) {
         self.parameters.redirect_uri = uri;
     }
+}
 
-    /// Refresh the current access token with the current refresh token
-    pub fn refresh_token(&self) {
-        let token = self
-            .resource
-            .get()
-            .and_then(Result::ok)
-            .flatten()
-            .map(|storage| storage.refresh_token);
-        let parameters = self.parameters.clone();
-        spawn_local(async move {
-            if let Some(token) = token {
-                let response = refresh_token(&parameters, token).await.map(Option::Some);
-                if response.is_err() {
-                    remove_token_storage().ok();
+/// Initialize the issuer resource, which will fetch the JWKS and endpoints.
+///
+/// # Panics
+///
+/// The init function can panic when the issuer and jwks could ne be fetched successfully.
+fn init_issuer_resource(parameters: AuthParameters) -> IssuerResource {
+    create_local_resource(move || parameters.clone(), {
+        move |parameters: AuthParameters| async move {
+            let configuration = reqwest::Client::new()
+                .get(format!(
+                    "{}/.well-known/openid-configuration",
+                    parameters.issuer
+                ))
+                .send()
+                .await
+                .unwrap()
+                .json::<Configuration>()
+                .await
+                .unwrap();
+
+            let keys = reqwest::Client::new()
+                .get(configuration.jwks_uri.clone())
+                .send()
+                .await
+                .unwrap()
+                .json::<Keys>()
+                .await
+                .unwrap();
+
+            (configuration, keys)
+        }
+    })
+}
+
+/// Initialize the auth resource, which will handle the entire state of the authentication.
+fn init_auth_resource(parameters: AuthParameters, issuer: IssuerResource) -> AuthResource {
+    create_local_resource(
+        move || {
+            (
+                issuer.get(),
+                use_local_storage::<Option<TokenStorage>, JsonCodec>(LOCAL_STORAGE_KEY)
+                    .0
+                    .get(),
+            )
+        },
+        {
+            move |(issuer, local_storage): (Option<(Configuration, Keys)>, Option<TokenStorage>)| {
+                let parameters = parameters.clone();
+                async move {
+                    let Some(issuer) = issuer else {
+                        return Ok(None);
+                    };
+
+                    let (_, set_local_storage, remove_local_storage) =
+                        use_local_storage::<Option<TokenStorage>, JsonCodec>(LOCAL_STORAGE_KEY);
+
+                    let auth_response = use_query::<CallbackResponse>();
+                    match auth_response.get_untracked() {
+                        Ok(CallbackResponse::SuccessLogin(response)) => {
+                            use_navigate()(
+                                &parameters.redirect_uri,
+                                NavigateOptions {
+                                    resolve: false,
+                                    replace: true,
+                                    scroll: true,
+                                    state: leptos_router::State(None),
+                                },
+                            );
+
+                            if let Some(token_storage) = local_storage {
+                                if token_storage.expires_in >= Local::now().naive_utc() {
+                                    return Ok(Some(token_storage));
+                                }
+                            }
+
+                            let token_storage =
+                                fetch_token(&parameters, &issuer.0, response).await?;
+
+                            set_local_storage.update(|u| *u = Some(token_storage.clone()));
+
+                            Ok(Some(token_storage))
+                        }
+                        Ok(CallbackResponse::SuccessLogout(response)) => {
+                            use_navigate()(
+                                &parameters.post_logout_redirect_uri,
+                                NavigateOptions {
+                                    resolve: false,
+                                    replace: true,
+                                    scroll: true,
+                                    state: leptos_router::State(None),
+                                },
+                            );
+
+                            if response.destroy_session {
+                                remove_local_storage();
+                            }
+
+                            Ok(None)
+                        }
+                        Ok(CallbackResponse::Error(error)) => Err(AuthError::Provider(error)),
+                        Err(_) => {
+                            if let Some(token_storage) = local_storage {
+                                if token_storage.expires_in >= Local::now().naive_utc() {
+                                    return Ok(Some(token_storage));
+                                }
+
+                                remove_local_storage();
+                            }
+
+                            Ok(None)
+                        }
+                    }
                 }
-                expect_context::<Auth>().resource.set(response);
             }
-        });
-    }
+        },
+    )
+}
+
+/// This will handle the refresh, if there is an refresh token.
+fn create_handle_refresh_effect(
+    parameters: AuthParameters,
+    issuer: IssuerResource,
+    resource: AuthResource,
+) {
+    create_effect(move |_| {
+        let Some(issuer) = issuer.get() else {
+            return;
+        };
+        let Some(Ok(Some(token_storage))) = resource.get() else {
+            return;
+        };
+
+        let expires_in = token_storage.expires_in - Local::now().naive_utc();
+        #[allow(clippy::cast_precision_loss)]
+        let wait = (expires_in.num_seconds() as f64 - REFRESH_TOKEN_SECONDS_BEFORE as f64).max(0.0)
+            * 1000.0;
+
+        let UseTimeoutFnReturn { start, .. } = use_timeout_fn(
+            move |(parameters, configuration, resource, token): (
+                AuthParameters,
+                Configuration,
+                AuthResource,
+                String,
+            )| {
+                spawn_local(async move {
+                    match refresh_token(&parameters, &configuration, token)
+                        .await
+                        .map(Option::Some)
+                    {
+                        Ok(token_storage) => {
+                            use_local_storage::<Option<TokenStorage>, JsonCodec>(LOCAL_STORAGE_KEY)
+                                .1
+                                .update(|u| *u = token_storage);
+                        }
+                        Err(error) => {
+                            resource.update(|u| *u = Some(Err(error)));
+                        }
+                    }
+                });
+            },
+            wait,
+        );
+
+        start((
+            parameters.clone(),
+            issuer.0,
+            resource,
+            token_storage.refresh_token.clone(),
+        ));
+    });
 }
 
 /// Asynchronous function for fetching an authentication token.
 /// This function is used to exchange an authorization code for an access token.
 async fn fetch_token(
     parameters: &AuthParameters,
+    configuration: &Configuration,
     auth_response: SuccessCallbackResponse,
 ) -> Result<TokenStorage, AuthError> {
     let mut body = "&grant_type=authorization_code"
@@ -310,7 +471,7 @@ async fn fetch_token(
         body = body.push_param_body("state", state);
     }
     let response = reqwest::Client::new()
-        .post(parameters.token_endpoint.clone())
+        .post(configuration.token_endpoint.clone())
         .header("Content-Type", "application/x-www-form-urlencoded")
         .body(body)
         .send()
@@ -320,25 +481,21 @@ async fn fetch_token(
         .await
         .map_err(Arc::new)?;
 
-    let token_storage = match response {
+    match response {
         TokenResponse::Success(success) => Ok(success.into()),
         TokenResponse::Error(error) => Err(AuthError::Provider(error)),
-    }?;
-
-    let token_storage_json = serde_json::to_string(&token_storage).map_err(Arc::new)?;
-    write_to_token_storage(token_storage_json.as_str())?;
-
-    Ok(token_storage)
+    }
 }
 
 /// Asynchronous function for refetching an authentication token.
 /// This function is used to exchange a new access token and refresh token.
 async fn refresh_token(
     parameters: &AuthParameters,
+    configuration: &Configuration,
     refresh_token: String,
 ) -> Result<TokenStorage, AuthError> {
     let response = reqwest::Client::new()
-        .post(parameters.token_endpoint.clone())
+        .post(configuration.token_endpoint.clone())
         .header("Content-Type", "application/x-www-form-urlencoded")
         .body(
             "&grant_type=refresh_token"
@@ -353,13 +510,8 @@ async fn refresh_token(
         .await
         .map_err(Arc::new)?;
 
-    let token_storage = match response {
+    match response {
         TokenResponse::Success(success) => Ok(success.into()),
         TokenResponse::Error(error) => Err(AuthError::Provider(error)),
-    }?;
-
-    let token_storage_json = serde_json::to_string(&token_storage).map_err(Arc::new)?;
-    write_to_token_storage(token_storage_json.as_str())?;
-
-    Ok(token_storage)
+    }
 }

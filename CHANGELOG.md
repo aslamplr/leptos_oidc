@@ -3,6 +3,15 @@
 This is containing every changes, there are and there will be some bugs. But
 tackling them down and documenting them will hopefully help you out. :)
 
+## v0.6.0
+
+- Refresh the access token automatically in the background.
+- Fetch JWK and Issuer informations auomatically.
+
+## v0.5.0
+
+- Add optional `audience` field for AuthParameters.
+
 ## v0.4.1
 
 - Fix: Use TimeDelta::try_seconds instead of Duratoin::seconds

@@ -22,17 +22,13 @@
 * SOFTWARE.
 */
 
-use std::sync::Arc;
-
 use chrono::{NaiveDateTime, TimeDelta, Utc};
-use leptos::window;
 use serde::{Deserialize, Serialize};
-use web_sys::Storage;
 
-use crate::{error::AuthError, response::SuccessTokenResponse};
+use crate::response::SuccessTokenResponse;
 
 /// The key used for storing authentication token data in local storage.
-const LOCAL_STORAGE_KEY: &str = "auth";
+pub(crate) const LOCAL_STORAGE_KEY: &str = "auth";
 
 /// A structure representing the storage of authentication tokens.
 #[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize)]
@@ -59,44 +55,4 @@ impl From<SuccessTokenResponse> for TokenStorage {
             }),
         }
     }
-}
-
-/// Retrieves the local storage for the application.
-fn get_storage() -> Result<Storage, AuthError> {
-    window()
-        .local_storage()
-        .map_err(|_| AuthError::Storage)?
-        .ok_or(AuthError::Storage)
-}
-
-/// Reads the token storage from local storage and deserializes it into a
-/// `TokenStorage` structure.
-pub(crate) fn read_token_storage() -> Result<Option<TokenStorage>, AuthError> {
-    let storage = get_storage()?;
-    let item = storage
-        .get(LOCAL_STORAGE_KEY)
-        .map_err(|_| AuthError::Storage)?;
-    if let Some(item) = item {
-        let token_storage = serde_json::from_str(item.as_str())
-            .map_err(|error| AuthError::Serde(Arc::new(error)))?;
-        return Ok(Some(token_storage));
-    }
-
-    Ok(None)
-}
-
-/// Removes the token storage from local storage.
-pub(crate) fn remove_token_storage() -> Result<(), AuthError> {
-    let storage = get_storage()?;
-    storage
-        .delete(LOCAL_STORAGE_KEY)
-        .map_err(|_| AuthError::Storage)
-}
-
-/// Writes a JSON representation of the token storage to local storage.
-pub(crate) fn write_to_token_storage(token_storage_json: &str) -> Result<(), AuthError> {
-    let storage = get_storage()?;
-    storage
-        .set(LOCAL_STORAGE_KEY, token_storage_json)
-        .map_err(|_| AuthError::Storage)
 }
