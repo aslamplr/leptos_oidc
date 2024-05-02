@@ -29,6 +29,7 @@ use crate::response::SuccessTokenResponse;
 
 /// The key used for storing authentication token data in local storage.
 pub(crate) const LOCAL_STORAGE_KEY: &str = "auth";
+pub(crate) const CODE_VERIFIER_KEY: &str = "code_verifier";
 
 /// A structure representing the storage of authentication tokens.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]

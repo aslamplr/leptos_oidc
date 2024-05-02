@@ -23,7 +23,7 @@ manage user authentication and tokens.
 | Crate version | Compatible Leptos version |
 |---------------|---------------------------|
 | <= 0.3        | 0.5                       |
-| 0.4-0.6       | 0.6                       |
+| 0.4-0.7       | 0.6                       |
 
 ## Features
 
@@ -35,10 +35,11 @@ manage user authentication and tokens.
 - Refreshing access tokens and storing them in local storage.
 - Working with client and server side rendering
 - Automatically refresh the access token in the background.
+- PKCE challenge
 
 ### Missing Features
 
-- PKCE challenge
+- Make refresh token optional
 - Some minor code refactoring/cleanup
 
 ### Tested Backends with Example
@@ -64,7 +65,7 @@ in your `Cargo.toml` file:
 
 ```toml
 [dependencies]
-leptos_oidc = "0.6"
+leptos_oidc = "0.7"
 ```
 
 Note: This needs at least `leptos v0.6`.
@@ -108,6 +109,7 @@ pub fn AppWithRouter() -> impl IntoView {
         client_id: "CLIENT_ID".to_string(),
         redirect_uri: "http://localhost:3000/profile".to_string(),
         post_logout_redirect_uri: "http://localhost:3000/bye".to_string(),
+        challenge: Challenge::S256,
         scope: Some("openid%20profile%20email"),
         audience: None,
     };

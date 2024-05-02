@@ -57,6 +57,7 @@ pub fn AppWithRouter() -> impl IntoView {
         client_id: "localdev".to_string(),
         redirect_uri: "http://localhost:3000".to_string(),
         post_logout_redirect_uri: "http://localhost:3000".to_string(),
+        challenge: Challenge::S256,
         scope: None,
         audience: None,
     };

@@ -34,11 +34,15 @@ use leptos::{
 };
 use leptos_router::{use_navigate, use_query, NavigateOptions};
 use leptos_use::{
-    storage::use_local_storage, use_timeout_fn, utils::JsonCodec, UseTimeoutFnReturn,
+    storage::{use_local_storage, use_session_storage},
+    use_timeout_fn,
+    utils::JsonCodec,
+    UseTimeoutFnReturn,
 };
+use oauth2::{PkceCodeChallenge, PkceCodeVerifier};
 use response::{CallbackResponse, SuccessCallbackResponse, TokenResponse};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use storage::{TokenStorage, LOCAL_STORAGE_KEY};
+use storage::{TokenStorage, CODE_VERIFIER_KEY, LOCAL_STORAGE_KEY};
 use utils::ParamBuilder;
 
 pub mod components;
@@ -70,8 +74,17 @@ pub struct AuthParameters {
     pub client_id: String,
     pub redirect_uri: String,
     pub post_logout_redirect_uri: String,
+    pub challenge: Challenge,
     pub scope: Option<String>,
     pub audience: Option<String>,
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub enum Challenge {
+    #[default]
+    S256,
+    Plain,
+    None,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
@@ -153,6 +166,36 @@ impl Auth {
 
         if let Some(audience) = &self.parameters.audience {
             params = params.push_param_query("audience", audience);
+        }
+
+        let (code_verifier, set_code_verifier, remove_code_verifier) =
+            use_session_storage::<Option<String>, JsonCodec>(CODE_VERIFIER_KEY);
+
+        match &self.parameters.challenge {
+            Challenge::S256 | Challenge::Plain => {
+                let code_challenge = if let Some(code_verifier_secret) = code_verifier.get() {
+                    let verifier = PkceCodeVerifier::new(code_verifier_secret);
+                    if self.parameters.challenge == Challenge::S256 {
+                        PkceCodeChallenge::from_code_verifier_sha256(&verifier)
+                    } else {
+                        PkceCodeChallenge::from_code_verifier_plain(&verifier)
+                    }
+                } else {
+                    let (code, verifier) = if self.parameters.challenge == Challenge::S256 {
+                        PkceCodeChallenge::new_random_sha256()
+                    } else {
+                        PkceCodeChallenge::new_random_plain()
+                    };
+                    set_code_verifier.update(|u| *u = Some(verifier.secret().to_owned()));
+                    code
+                };
+                params = params.push_param_query("code_challenge", code_challenge.as_str());
+                params = params
+                    .push_param_query("code_challenge_method", code_challenge.method().as_str());
+            }
+            Challenge::None => {
+                remove_code_verifier();
+            }
         }
 
         Some(params)
@@ -477,9 +520,20 @@ async fn fetch_token(
         .push_param_body("client_id", &parameters.client_id)
         .push_param_body("redirect_uri", &parameters.redirect_uri)
         .push_param_body("code", &auth_response.code);
+
     if let Some(state) = &auth_response.session_state {
         body = body.push_param_body("state", state);
     }
+
+    let (code_verifier, _, remove_code_verifier) =
+        use_session_storage::<Option<String>, JsonCodec>(CODE_VERIFIER_KEY);
+
+    if let Some(code_verifier) = code_verifier.get_untracked() {
+        body = body.push_param_body("code_verifier", code_verifier);
+
+        remove_code_verifier();
+    }
+
     let response = reqwest::Client::new()
         .post(configuration.token_endpoint.clone())
         .header("Content-Type", "application/x-www-form-urlencoded")

@@ -31,11 +31,6 @@ It's not only mandatory to enable the `refresh_token flow`, it's also mandatory
 to append the `refresh_token` to the response. \
 ![enable refresh token response in rauthy](rauthy_enable_refresh_token_response.png){width=30%}
 
-Last but not least you need to disable the `PKCE challenges`, right now
-**leptos_oidc** is not support the `PKCE challenges`, but I am sure it will work
-in the future! \
-![disable pkce challenge in rauthy](rauthy_disable_pkce_challenges.png){width=30%}
-
 ## Setup leptos_oidc
 
 All you need to do is to setup everything with the init function. In this
@@ -69,6 +64,7 @@ pub fn AppWithRouter() -> impl IntoView {
         client_id: "localdev".to_string(),
         redirect_uri: "http://localhost:3000".to_string(),
         post_logout_redirect_uri: "http://localhost:3000".to_string(),
+        challenge: Challenge::S256,
         scope: None,
         audience: None,
     };

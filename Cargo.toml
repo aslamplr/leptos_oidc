@@ -1,6 +1,6 @@
 [package]
 name = "leptos_oidc"
-version = "0.6.1"
+version = "0.7.0"
 edition = "2021"
 description = "A Leptos utility library for simplified OpenID Connect (OIDC) authentication integration."
 keywords = ["leptos", "auth", "oidc", "openidconnect", "oauth"]
@@ -25,10 +25,11 @@ name = "leptos_oidc"
 [dependencies]
 chrono = { version = "0.4", default-features = false, features = ["clock", "serde", "wasmbind"] }
 jsonwebtoken = { version = "9.3", default-features = false }
-jwt = "0.16"
+jwt = { version = "0.16", default-features = false }
 leptos = { version = "0.6", default-features = false }
-leptos-use = { version = "0.10.9", features = ["serde"] }
+leptos-use = { version = "0.10", default-features = false, features = ["serde"] }
 leptos_router = { version = "0.6", default-features = false }
+oauth2 = { version = "4.4.2", default-features = false, features = ["pkce-plain"] }
 reqwest = { version = "0.12", default-features = false, features = ["json"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 serde_json = { version = "1.0", default-features = false }
