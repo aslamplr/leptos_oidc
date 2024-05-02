@@ -3,6 +3,11 @@
 This is containing every changes, there are and there will be some bugs. But
 tackling them down and documenting them will hopefully help you out. :)
 
+## v0.6.1
+
+- Add `PartialEq`, `Eq`, `Hash` and `Serialize` whenever it's possible.
+- Fix minor documentation for `keycloak` and `rauthy` backend
+
 ## v0.6.0
 
 - Refresh the access token automatically in the background.
