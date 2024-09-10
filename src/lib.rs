@@ -27,6 +27,7 @@
 use std::sync::Arc;
 
 use chrono::Local;
+use codee::string::JsonSerdeCodec as JsonCodec;
 use jsonwebtoken::{decode, jwk::Jwk, DecodingKey};
 use leptos::{
     create_effect, create_local_resource, expect_context, provide_context, spawn_local, Resource,
@@ -35,9 +36,7 @@ use leptos::{
 use leptos_router::{use_navigate, use_query, NavigateOptions};
 use leptos_use::{
     storage::{use_local_storage, use_session_storage},
-    use_timeout_fn,
-    utils::JsonCodec,
-    UseTimeoutFnReturn,
+    use_timeout_fn, UseTimeoutFnReturn,
 };
 use oauth2::{PkceCodeChallenge, PkceCodeVerifier};
 use response::{CallbackResponse, SuccessCallbackResponse, TokenResponse};
